@@ -1,0 +1,268 @@
+    .db 83h             ; Required for all hooks
+    or a                ; Which condition?
+    ret z				;a is zero, return
+    push hl
+	;jr $
+	dec a				;a is not one
+	jp nz,aNotOne ;CLASS ONE AHEAD
+	ld a,013h ;pxl-test
+	cp b
+	jr nz, notPxlTest
+		ld a,(numArguments)
+		cp 2
+		jp nz,ReturnZPopBCPopHLResetCallBack
+		call OP1Byte
+		ld (coordX),a
+		call _PopOP1
+		call OP1Byte
+		ld (coordY),a
+		call CoordsToHL
+		ld a,(hl)
+		add a,a ;*2
+		add a,a ;*4
+		add a,a ;*8
+		add a,a ;*16
+		ld (OP1+2),a
+		ld a,080h
+		ld (OP1+1),a
+		
+		pop hl
+		or 1
+		ret
+notPxlTest:
+	
+	jp ReturnZ
+aNotOne:	;CLASS TWO AHEAD
+	dec a				
+	jp nz,aNotTwo
+	ld hl,0D18502h   ;CLRDRAW
+	xor a
+	sbc hl,bc
+	jr nz,notClrDraw
+		call clearBuffer
+		call flipBuffer
+	pop hl
+	or 1                ; set NZ
+    ret
+	
+notClrDraw:
+	jp ReturnZ
+	
+aNotTwo:		;CLASS 3: CLASS 2 FUNCT CALLBACK
+	push bc
+		ld a,b
+		cp 64
+		jr nc,ReturnZPopBCPopHL
+		ld de,0
+		ld e,a
+		ld hl,Class3LUT
+		add hl,de
+		add hl,de
+		add hl,de
+		ld hl,(hl)
+		jp (hl)
+		
+ReturnNZPopBCPopHLResetCallBack:
+	pop bc
+	pop hl
+	or 1
+	ret
+	
+ReturnZPopBCPopHLResetCallBack:
+ReturnZPopBCPopHL:			
+	pop bc
+ReturnZ:
+	pop hl
+ReturnZNoPop:
+    cp a
+     ret
+		
+coordX:
+	.db 0
+coordY:
+	.db 0
+typePT:
+	.db 0
+Class3LUT:
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl callbackHandlePTOff
+	.dl callbackHandlePTOn
+	.dl callbackHandlePTChange
+	.dl ReturnZPopBCPopHL ;8
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL ;16
+	.dl callbackHandlePxlOff
+	.dl callbackHandlePxlOn
+	.dl callbackHandlePxlChange
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL 
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL ;32
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL 
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL
+	.dl ReturnZPopBCPopHL ;64
+	
+callbackHandlePTOn:
+	ld a,(numArguments)
+	cp 3
+	jp nz,callbackHandlePTOnNoType
+	call OP1Byte
+	dec a
+	ld (typePT),a
+	call _PopOP1
+	jr callbackHandlePTOnNoCnt
+callbackHandlePTOnNoType:
+	cp 2
+	jp nz,ReturnZPopBCPopHLResetCallBack
+callbackHandlePTOnNoCnt:
+	call ProJOP1ToY
+	ld (coordY),a
+	call _PopOP1
+	call ProJOP1ToX
+	ld (coordX),a
+	call CoordsToHL
+	ld bc,0010101h
+	call FillPoint
+	ld a,0
+	ld (typePT),a
+	res numOP1,(iy+ParsFlag2)
+	jp ReturnNZPopBCPopHLResetCallBack
+	
+callbackHandlePTOff:
+	ld a,(numArguments)
+	cp 3
+	jp nz,callbackHandlePTOffNoType
+	call OP1Byte
+	dec a
+	ld (typePT),a
+	call _PopOP1
+	jr callbackHandlePTOffNoCnt
+callbackHandlePTOffNoType:
+	cp 2
+	jp nz,ReturnZPopBCPopHLResetCallBack
+callbackHandlePTOffNoCnt:
+	;jr $
+	call ProJOP1ToY
+	ld (coordY),a
+	call _PopOP1
+	call ProJOP1ToX
+	ld (coordX),a
+	call CoordsToHL
+	ld bc,0000000h
+	call FillPoint
+	ld a,0
+	ld (typePT),a
+	res numOP1,(iy+ParsFlag2)
+	jp ReturnNZPopBCPopHLResetCallBack
+	
+callbackHandlePTChange:
+	ld a,(numArguments)
+	cp 2
+	jp nz,ReturnZPopBCPopHLResetCallBack
+	call ProJOP1ToY
+	ld (coordY),a
+	call _PopOP1
+	call ProJOP1ToX
+	jp changePixel
+	
+callbackHandlePxlOn:
+	ld a,(numArguments)
+	cp 2
+	jp nz,ReturnZPopBCPopHLResetCallBack
+	call OP1Byte
+	ld (coordX),a
+	call _PopOP1
+	call OP1Byte
+	ld (coordY),a
+	call CoordsToHL
+	ld bc,0010101h
+	call ShadeHL
+	;call flipBuffer
+	res numOP1,(iy+ParsFlag2)
+	jp ReturnNZPopBCPopHLResetCallBack
+	
+callbackHandlePxlOff:
+	ld a,(numArguments)
+	cp 2
+	jp nz,ReturnZPopBCPopHLResetCallBack
+	call OP1Byte
+	ld (coordX),a
+	call _PopOP1
+	call OP1Byte
+	ld (coordY),a
+	call CoordsToHL
+	ld bc,0
+	call ShadeHL
+	res numOP1,(iy+ParsFlag2)
+	jp ReturnNZPopBCPopHLResetCallBack
+	
+callbackHandlePxlChange:
+	ld a,(numArguments)
+	cp 2
+	jp nz,ReturnZPopBCPopHLResetCallBack
+	call OP1Byte
+	ld (coordX),a
+	call _PopOP1
+	call OP1Byte
+changePixel:
+	ld (coordY),a
+	call CoordsToHL
+	ld bc,(hl)
+	ex de,hl
+	ld hl,0010101h
+	xor a
+	sbc hl,bc
+	push hl
+	ex de,hl
+	pop bc
+	call ShadeHL
+	res numOP1,(iy+ParsFlag2)
+	jp ReturnNZPopBCPopHLResetCallBack

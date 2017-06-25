@@ -1,0 +1,63 @@
+ #macro relocate(new_location)
+  #define old_location eval($)
+  .org new_location
+  #define g_location eval(new_location)
+ #endmacro
+ 
+ #macro endrelocate()
+  #ifdef g_location
+  .org $-g_location + old_location
+  #undefine g_location
+  #undefine old_location
+  #endif
+ #endmacro
+  
+#include "ti84pce.inc" 
+#define hookPtr pixelShadow2
+#define gSize 320*240
+#define buffer gSize+vRam 
+
+   .org UserMem-2 
+   
+   .db tExtTok,tAsm84CeCmp 
+	call _RclAns
+	call _ConvOP1
+	xor a
+	or e
+	jr nz,enable
+	
+	call _RunIndicOn
+	ld a,lcdBpp16
+	ld (mpLcdCtrl),a 
+	call _ClrParserHook
+	ret
+	
+enable:
+	call _RunIndicOff
+	ld a,lcdBpp8
+	ld (mpLcdCtrl),a 
+	ld hl,hookStart
+	ld de,hookPtr
+	ld bc,hookEnd-hookStart
+	ldir
+	ld hl,hookPtr
+	call _SetParserHook
+	
+	ld hl,mpLcdPalette
+	ld (hl),0FFh
+	inc hl
+	ld (hl),0FFh
+	inc hl
+	ld (hl),0
+	inc hl
+	ld (hl),0
+	ret
+	
+hookStart:
+	relocate(hookPtr)
+	
+	#include "AppvarHook.ez80"
+	#include "util.ez80"
+	
+	endrelocate()
+hookEnd:

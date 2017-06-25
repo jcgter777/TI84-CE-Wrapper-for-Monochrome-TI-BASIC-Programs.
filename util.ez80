@@ -1,0 +1,160 @@
+ProJOP1ToX: ;my version of _XftoI ((X-xmin)*96)/(xmax-xmin)
+	call _PushOP1		 ;push OP1
+	ld a,00Ah ;tMinX (?)
+	call _RclSysTok 
+	call _OP1ToOP2 		;xmin -> op2
+	call _OP1ToOP4  	;xmin-> op4
+	ld a,00Bh ;tMaxX
+	call _RclSysTok 	;xmax -> op1
+	call _FPSub 		;op1 - op2 -> op1
+	call _OP1ToOP5		;op1 -> op5
+	call _PopOP1		;pop op1
+	call _OP4ToOP2		;op4 -> op2
+	call _FPSub			;op1 - op2 -> op1
+	call _OP2Set0       ;zero op2
+	ld hl,OP2+1
+	ld (hl),081h
+	inc hl
+	ld (hl),096h		;96 -> op2
+	call _FPMult
+	call _OP5ToOP2 		;op5->op2
+	call _FPDiv			;op1 / op2 -> op1
+	call _Int
+	jr OP1Byte
+	
+ProJOP1ToY: ;my version of _YftoI ((Y-ymin)*64)/(ymax-ymin)
+	call _PushOP1		
+	ld a,00Ch ;tMinY
+	call _RclSysTok 
+	call _OP1ToOP2 		
+	call _OP1ToOP4  	
+	ld a,00Dh ;tMaxY (?)
+	call _RclSysTok 	
+	call _FPSub 		
+	call _OP1ToOP5		
+	call _PopOP1		
+	call _OP4ToOP2		
+	call _FPSub			
+	call _OP2Set0       
+	ld hl,OP2+1
+	ld (hl),081h
+	inc hl
+	ld (hl),064h		
+	call _FPMult
+	call _OP5ToOP2 		
+	call _FPDiv			
+	call _Int
+	jr OP1Byte
+	
+OP1Byte: ;;converts a 2-digit number in OP1 to register a
+	ld hl,OP1 + 1
+	ld a,(hl)
+	inc hl
+	and 00Fh
+	jr nz, OP1ByteGreaterThenTen
+		ld a,(hl)
+		rra \ rra \ rra \ rra
+	ret
+OP1ByteGreaterThenTen:
+		ld a,(hl)
+		and 0F0h
+		rra 
+		ld b,a
+		rra \ rra
+		add a,b
+		ld b,a
+		ld a,(hl)
+		and 00Fh
+		add a,b
+	ret
+
+FillPoint:
+	ld a,(typePT)
+	or a
+	jp z,ShadeHL
+	dec a
+	jp z,FillPointBox
+	
+	ld de,-960
+	add hl,de
+	call ShadeHL ;top
+	ld de, 320-3
+	add hl,de
+	call ShadeHL ;mid-left
+	ld de, -637
+	add hl,de
+	call ShadeHL ;middle
+	ld de, -637
+	add hl,de
+	call ShadeHL ;mid- right
+	ld de, 320-3
+	add hl,de
+	jr ShadeHL ;buttom
+	
+FillPointBox:
+	ld de,-963
+	add hl,de
+	
+	ld de,320-6
+	ld (TempBcStore),bc
+	ld b,9
+FillPointBoxLoop:
+	push bc
+	ld bc,(TempBcStore)
+	ld (hl),bc
+	inc hl \ inc hl \ inc hl
+	ld (hl),bc
+	inc hl \ inc hl \ inc hl
+	ld (hl),bc
+	add hl,de
+	pop bc
+	djnz FillPointBoxLoop
+	ret
+	
+TempBcStore:
+	.db 0
+	.db 0
+	.db 0
+	
+ShadeHL:
+	ld de,320
+	ld (hl),bc
+	add hl,de
+	ld (hl),bc
+	add hl,de
+	ld (hl),bc
+	ret
+	
+CoordsToHL:
+	ld a,(coordY) 
+	ld l,a 
+	ld h,160 
+	mlt hl
+	add hl,hl 
+	ld a,(coordX) 
+	ld de,0 
+	ld e,a
+	add hl,de 
+	push hl 
+	add hl,hl 
+	pop de 
+	add hl,de 
+	ld de,vRam
+	add hl,de
+	ret
+
+clearBuffer:   
+	ld hl,buffer
+	ld a,0
+	ld (hl),a
+	ld de,buffer+1
+	ld bc,gSize-1
+	ldir 
+	ret
+	
+flipBuffer:
+	ld hl,buffer
+	ld de,vRam
+	ld bc,gSize
+	ldir
+	ret
